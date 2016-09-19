@@ -73,7 +73,7 @@ class Score:
 		self.url['jacket'] = self.path + self.id + '/' + self.id + self._d + '.jpg'
 		self.url['data']   = self.path + 'obj/data' + self.id + self._d + '.png'
 
-	def getDetail(self):
+	def setDetail(self):
 		'''
 		譜面サイトをjavascriptレンダリングして詳しい譜面情報を入手
 		'''

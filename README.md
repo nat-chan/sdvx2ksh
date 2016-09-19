@@ -12,6 +12,7 @@
 6. urllib2
 7. cStringIO
 
+#How to use
 ```python
 from sdvx2ksh import *
 onikyokan = Score('http://sdvx.in/03/03044/03044e.htm')
@@ -24,7 +25,7 @@ with open('onikyokan.ksh','w') as f:
 ```python
 from sdvx2ksh import *
 onikyokan = Score('http://sdvx.in/03/03044/03044e.htm')
-onikyokan.getImg('data').show() #譜面がみれる
+onikyokan.getImg('data').show() #譜面が表示
 show(onikyokan[15]) #16小節目を表示
 color_picker(onikyokan[15]) #16小節目に含まれる色を降順で表示
 for measure in onikyokan:
@@ -34,7 +35,7 @@ for measure in onikyokan:
 ```python:
 from sdvx2ksh import *
 onikyokan = Score('http://sdvx.in/03/03044/03044e.htm')
-onikyokan.getDetail() #詳細な譜面情報を取得(重い)
+onikyokan.setDetail() #詳細な譜面情報を取得(重い)
 #次の情報がsetされる
 onikyokan.title
 onikyokan.artist
