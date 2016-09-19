@@ -32,7 +32,7 @@ for measure in onikyokan:
 	show(measure) #イテレーションも可能
 ```
 
-```python:
+```python
 from sdvx2ksh import *
 onikyokan = Score('http://sdvx.in/03/03044/03044e.htm')
 onikyokan.setDetail() #詳細な譜面情報を取得(重い)
