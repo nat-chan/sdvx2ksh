@@ -9,8 +9,8 @@
 3. PhandomJS <https://bitbucket.org/ariya/phantomjs/downloads/phantomjs-2.1.1-windows.zip>
 4. Numpy
 5. PIL
-6. Urllib2
-7. CStringIO
+6. urllib2
+7. cStringIO
 
 ```python
 from sdvx2ksh import *
