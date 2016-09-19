@@ -1,5 +1,5 @@
 #sdvx2ksh
-![splash](http://github.com/nat-chan/sdvx2ksh.wiki/splash.png)
+![splash](https://github.com/nat-chan/sdvx2ksh/wiki/splash.png)
 サイトsdvx.inからkshootmaniaの譜面を自動で作成するプロジェクトです.
 
 ##Requirements
@@ -12,15 +12,13 @@ PIL
 urllib2
 cStringIO
 
-```python:
-from sdvx2ksh import *
-onikyokan = Score('http://sdvx.in/03/03044/03044e.htm')
-ksh = parseScore(onikyokan, 32) #1小節で刻むビート
-print ksh #譜面を表示
-with open('onikyokan.ksh','w') as f:
-	f.write(ksh)
-#これでkshoot editerから開けるようになる
-```
+    from sdvx2ksh import *
+    onikyokan = Score('http://sdvx.in/03/03044/03044e.htm')
+    ksh = parseScore(onikyokan, 32) #1小節で刻むビート
+    print ksh #譜面を表示
+    with open('onikyokan.ksh','w') as f:
+    	f.write(ksh)
+    #これでkshoot editerから開けるようになる
 
 ```python:
 from sdvx2ksh import *
