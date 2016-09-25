@@ -9,7 +9,8 @@ from cStringIO import StringIO
 from PIL import Image
 
 ###デバッグ用関数
-show = lambda a: Image.fromarray(a).show()
+show = lambda a: Image.fromarray(np.uint8(a)).show()
+D = lambda l: [i-j for i,j in zip(l[:-1],l[1:])]
 
 def toStr(arr):
 	return '\r\n'.join(
@@ -151,86 +152,108 @@ class Score:
 			self.setSubscripts()
 		return sum(len(i) - 1 for i in self.subscripts[1])
 
-def isBTshort(sample):
-	return np.all(sample == (254,255,252,255), axis=1)
+	def show(self):
+		if 'self' not in self.img:
+			bg   = self.getArr('bg').astype('float')
+			data = self.getArr('data').astype('float')
+			bar  = self.getArr('bar')
 
-def isBTlong(sample):
-	white_l = (
-		(209,210,207,255),#灰
+			tmp = (bg[:,:,:3]*bg[:,:,(3,3,3)]+data[:,:,:3]*data[:,:,(3,3,3)])/255
+			mask = tmp > 256
 
-		(226,148,191,255),#灰の上に赤
-		(220,174,200,255),
-		(234,125,191,255),
-		(209,201,206,255),
+			tmp = np.uint8(~mask*tmp + 255*mask)
+			mask = bar[:,:,(3,3,3)] == 255
+			tmp = ~mask*tmp + bar[:,:,:3]
 
-		(152,168,224,255),#灰の上に青
-		(137,159,229,255),
-		(174,187,218,255),
-		(189,200,221,255),
-		(209,201,206,255)
-	)
-	return np.any(
-		np.c_[
-			tuple(
-				np.all(sample == w,axis=1)
-				for w in white_l
-			)
-		]
-	,axis=1)
+			self.img['self'] = Image.fromarray(tmp)
+
+		self.img['self'].show()
+
+def isBTshort(arr):
+	return np.all(arr == (254,255,252,255),axis=2)
+
+#def isBTlong(sample):
+#	white_l = (
+#		(209,210,207,255),#灰
+#
+#		(226,148,191,255),#灰の上に赤
+#		(220,174,200,255),
+#		(234,125,191,255),
+#		(209,201,206,255),
+#
+#		(152,168,224,255),#灰の上に青
+#		(137,159,229,255),
+#		(174,187,218,255),
+#		(189,200,221,255),
+#		(209,201,206,255)
+#	)
+#	return np.any(
+#		np.c_[
+#			tuple(
+#				np.all(sample == w,axis=1)
+#				for w in white_l
+#			)
+#		]
+#	,axis=1)
+
+def isBTlong(arr):
+	x = arr[:,:,0]
+	y = arr[:,:,1]
+	z = arr[:,:,2]
+	return -0.835*x -1.015*y + 483.48 < z
+#	return 0.835*arr[:,:,0] + 1.015*arr[:,:,1] + arr[:,:,2] > 483.48
 
 def parseBT(arr, mode):
 	if arr.shape[0] % mode == 0:
 		d = arr.shape[0]/mode
 	else:
 		raise Exception('画像を'+str(mode)+'分割できません')
-
-	return np.c_[
-		tuple(
-			(
-				lambda sample: isBTshort(sample) + 2*isBTlong(sample)
-			)(arr[:,i][::-1][1::d])
-			for i in (12,22,32,42)
-		)
-	].astype('|S1')
+	sample = arr[:,(12,22,32,42)][::-1][1::d]
+	s = isBTshort(sample)
+	l = isBTlong(sample) & ~s
+	return (2*l+s).astype('|S1')
 
 def isFXshort(sample):
 	#yellow_s = ((255,148,27,255),(225,148,27,255))
-	return sample[:,3] == 255
+	return sample[:,:,3] == 255
 
-def isFXlong(sample):
-	yellow_l = (
-		(255,159,7,107),#黄
-
-		(252,102,106,166),#黄の上に赤
-		(251,88,133,189),
-		(252,93,124,182),
-		(251,96,116,174),
-		(251,98,110,170),
-		(254,138,42,122),
-		(253,110,95,151),
-		(251,93,120,178),
-		(254,124,69,135),
-
-		(140,125,153,166),#黄の上に青
-		(115,123,187,189),
-		(128,125,171,176),
-		(122,123,178,182),
-		(136,126,160,169),
-		(200,147,76,128),
-		(155,137,135,154),
-		(132,124,165,172),
-		(238,153,31,114),
-		(176,141,109,141),
-		(143,129,153,164)
-	)
-	return np.any(
-		np.c_[
-			tuple(
-				np.all(sample == y,axis=1)
-				for y in yellow_l
-			)
-		]
-	,axis=1)
+#def isFXlong(sample):
+#	yellow_l = (
+#		(255,159,7,107),#黄
+#
+#		(252,102,106,166),#黄の上に赤
+#		(251,88,133,189),
+#		(252,93,124,182),
+#		(251,96,116,174),
+#		(251,98,110,170),
+#		(254,138,42,122),
+#		(253,110,95,151),
+#		(251,93,120,178),
+#		(254,124,69,135),
+#
+#		(140,125,153,166),#黄の上に青
+#		(115,123,187,189),
+#		(128,125,171,176),
+#		(122,123,178,182),
+#		(136,126,160,169),
+#		(200,147,76,128),
+#		(155,137,135,154),
+#		(132,124,165,172),
+#		(238,153,31,114),
+#		(176,141,109,141),
+#		(143,129,153,164)
+#	)
+#	return np.any(
+#		np.c_[
+#			tuple(
+#				np.all(sample == y,axis=1)
+#				for y in yellow_l
+#			)
+#		]
+#	,axis=1)
+def isFXlong(arr):
+	return (0.171104*arr[:,:,0] - 0.681597*arr[:,:,1] + arr[:,:,2] < 156.169) & \
+	       ~np.all(arr == [0,0,0,0],axis=2)
 
 def parseFX(arr, mode):
 	if arr.shape[0] % mode == 0:
@@ -238,14 +261,10 @@ def parseFX(arr, mode):
 	else:
 		raise Exception('画像を'+str(mode)+'分割できません')
 
-	return np.c_[
-		tuple(
-			(
-				lambda sample: 2*isFXshort(sample) + isFXlong(sample)
-			)(arr[:,i][::-1][1::d])
-			for i in (17,37)
-		)
-	].astype('|S1')
+	sample = arr[:,(17,37)][::-1][1::d]
+	s = isFXshort(sample)
+	l = isFXlong(sample) & ~s
+	return (2*s+l).astype('|S1')
 	
 def parseVOL(arr, mode):
 	return np.array([['-','-']]*mode)
