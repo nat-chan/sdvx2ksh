@@ -1,11 +1,14 @@
-#!/usr/bin/env python
+#!/ndow-option -g utf8 onusr/bin/env python
 # coding:utf-8
+from __future__ import unicode_literals
 import sys
 import urllib2
 from urllib2 import HTTPError
 import numpy as np
 from selenium import webdriver
+import lxml.html
 from cStringIO import StringIO
+import pafy
 from PIL import Image
 
 ###デバッグ用関数
@@ -62,6 +65,7 @@ class Score:
 		self.img = {}
 		self.arr = {}
 		self.url = {}
+		self.header = {}
 		self.version = url[19:21]
 		self.id = url.split('/')[4]
 		self._d = url[-5]
@@ -74,70 +78,176 @@ class Score:
 		self.url['jacket'] = self.path + self.id + '/' + self.id + self._d + '.jpg'
 		self.url['data']   = self.path + 'obj/data' + self.id + self._d + '.png'
 
+	def setHeader(self):
+#		def ancestor(self,i):
+#				if i == 0:
+#						return self
+#				else:
+#						return ancestor(self.getparent(),i-1)
+
+		source = self.getSource()
+		root = lxml.html.fromstring(source)
+		elements_div = root.xpath('//div')
+
+		#set effector illustrator
+#		element_searched = root.xpath('//div[text()="Effected by"]')[0]
+#		element_effect = ancestor(element_searched, 5).getnext().xpath('.//div')[0]
+		element_effect = elements_div[-2]
+		effect = element_effect.text
+		illust = element_effect.text_content()[len(effect):]
+		self.header['effect'] = effect
+		self.header['illustrator'] = illust
+		self.header['level'] = elements_div[3].text
+		self.header['title'] = elements_div[4].text
+		self.header['artist'] = elements_div[-9].text[3:]
+		bpm = elements_div[-5].text
+		self.header['t'] = '' if '-' in bpm else bpm
+		self.header['difficulty'] = {'n':'light', 'a':'challenge', 'e':'extended',
+		                             'i':'infinite', 'g':'infinite'}[self._d]
+		self.header['jacket'] = 'jacket_%s.jpg' % self._d
+		self.header['m'] = 'no'+((';fx_%s.m4a'%self._d)*4)[1:]
+
+	def getHeader(self):
+		if self.header == {}:
+			self.setHeader()
+		return '\r\n'.join(k + '=' + self.header[k] for k in self.header)
+
+	def setCorrectUrl(self):
+		source = self.getSource()
+		root = lxml.html.fromstring(source)
+		bg, data, bar = [
+			'http://sdvx.in'+e.xpath('img')[0].attrib['src']
+			for e in root.xpath('//p[@class="PNG"]')
+		]
+		self.url['bg'] = bg
+		self.url['bata'] = data
+		self.url['bar'] = bar
+
+
 	def setDetail(self):
 		'''
+		廃止された
 		譜面サイトをjavascriptレンダリングして詳しい譜面情報を入手
 		'''
-		driver = webdriver.PhantomJS()
-		driver.get(self.url['url'])
+		try:
+			driver = webdriver.PhantomJS()
+			driver.get(self.url['url'])
 
-		self.title  = driver.find_elements_by_class_name('f1')[2].text
-		self.artist = driver.find_elements_by_class_name('b2')[0].text[2:]
-		self.level  = driver.find_elements_by_tag_name('a')
-		self.bpm    = driver.find_elements_by_class_name('f1')[3].text
-#TODO DIABLOSIS::Nāgaにてclass_nameがb2になっている
-		self.chain  = driver.find_element_by_class_name('e1').text
+			self.title  = driver.find_elements_by_class_name('f1')[2].text
+			self.artist = driver.find_elements_by_class_name('b2')[0].text[2:]
+			self.level  = driver.find_elements_by_tag_name('a')
+#TODO DIABLOSIS::Negaにてclass_nameがb2になっている
+#			self.bpm    = driver.find_elements_by_class_name('f1')[3].text
+#			self.chain  = driver.find_element_by_class_name('e1').text
 
-		elements = driver.find_elements_by_tag_name('a')
-		self.url['fx']   = elements[2].get_attribute('href')
-		self.url['nofx'] = elements[3].get_attribute('href')
+			elements = driver.find_elements_by_tag_name('a')
+			self.url['fx']   = elements[2].get_attribute('href')
+			self.url['nofx'] = elements[3].get_attribute('href')
 
-		texts = driver.find_elements_by_class_name('ef')[2].text.split('\n')
-		self.effect      = texts[0]
-		self.illustrator = texts[1]
+			texts = driver.find_elements_by_class_name('ef')[2].text.split('\n')
+			self.effect      = texts[0]
+			self.illustrator = texts[1]
 
-		self.screenshot = Image.open(StringIO(driver.get_screenshot_as_png()))
+#			self.screenshot = Image.open(StringIO(driver.get_screenshot_as_png()))
 
-		driver.close()
+		finally:
+			driver.close()
 
-	def getImg(self, key):
+	def setSource(self):
+		try:
+			driver = webdriver.PhantomJS()
+			driver.get(self.url['url'])
+			self.source = driver.page_source
+		finally:
+			driver.close()
+	
+	def getSource(self):
+		if 'source' not in dir(self):
+			self.setSource()
+		return self.source
+
+#TODO レーン消え、アレンジ、等でbg,barの命名規則がカオス。殺す。
+	def getImage(self, key):
 		if key not in self.img:
-			try:
-				url = self.url[key]
-				imgdata = urllib2.urlopen(url).read()
-				self.img[key] = Image.open(StringIO(imgdata))
-			except HTTPError:
-				if key == 'bg':
-					self.url['bg'] = self.url['bg'][:-6] + self._d + 'bg.png'
-				elif key == 'bar':
-					self.url['bar'] = self.url['bar'][:-7] + self._d + 'bar.png'
-				else:
-					raise HTTPError(str(key)+'のurlが不正です')
-				url = self.url[key]
-				imgdata = urllib2.urlopen(url).read()
-				self.img[key] = Image.open(StringIO(imgdata))
+			if self._d == 'g':
+				try:#grv譜面は使いまわしされない画像かもしれない
+					url = self.url[key]
+					if key == 'bg':
+						url = self.url['bg'][:-6] + 'gbg.png'
+					elif key == 'bar':
+						url = self.url['bar'][:-7] + 'gbar.png'
+					imgdata = urllib2.urlopen(url).read()
+					self.img[key] = Image.open(StringIO(imgdata))
+					self.url[key] = url
+				except HTTPError:
+					url = self.url[key]
+					imgdata = urllib2.urlopen(url).read()
+					self.img[key] = Image.open(StringIO(imgdata))
+			else:#レーンが消える背景はgbg.png
+				try:
+					url = self.url[key]
+					imgdata = urllib2.urlopen(url).read()
+					self.img[key] = Image.open(StringIO(imgdata))
+				except HTTPError:
+					if key == 'bg':
+						self.url['bg'] = self.url['bg'][:-6] + 'gbg.png'
+					else:
+						raise HTTPError(str(key)+'のurlが不正です')
+					url = self.url[key]
+					imgdata = urllib2.urlopen(url).read()
+					self.img[key] = Image.open(StringIO(imgdata))
 		return self.img[key]
 
-	def getArr(self, key):
+	def setYoutubeUrl(self):
+		source = self.getSource()
+		root = lxml.html.fromstring(source)
+		ongen = root.xpath('//div[text()="音源"]')[0]
+		while ongen.getnext() == None:
+			ongen = ongen.getparent()
+		fx = ongen.getnext()
+		self.url['fx'] = fx.xpath(".//a")[0].attrib['href']
+		nofx = fx.getnext()
+		self.url['nofx'] = nofx.xpath(".//a")[0].attrib['href']
+
+	def dl_music(self):
+		def dl(url, path):
+			video = pafy.new(url)
+			best = video.getbestaudio()
+			best.download(path)
+		if 'fx' not in self.url or 'nofx' not in self.url:
+			self.setYoutubeUrl()
+		dl(self.url['fx'], 'fx_'+self._d+'.m4a')
+		dl(self.url['nofx'], 'nofx_'+self._d+'.m4a')
+
+	def getArray(self, key):
 		if key not in self.arr:
-			self.arr[key] = np.array(self.getImg(key).convert('RGBA'))
+			self.arr[key] = np.array(self.getImage(key).convert('RGBA'))
 		return self.arr[key]
 
 	def setSubscripts(self):
-		bg =  self.getArr('bg')
+		bg =  self.getArray('bg')
 		sample = bg[-1,:,3]
-		x = np.where(sample != 0)[0][::55]
+		i = np.where(sample != 0)[0][0]
+		d = {12:70, 32:110}[i]
+		x = []
 		Y = []
-		for i in x:
-			sample = bg[:,i+8,0]
+		while True:
+			try:
+				sample = bg[:,i+8,0]
+			except IndexError:
+				break
+			if ~np.any(sample):
+				break
+			x.append(i)
 			Y.append(np.where(sample == 204)[0])
+			i+=d
 		self.subscripts = [x, Y]
 
 	def __getitem__(self, j):
 		if 'subscripts' not in dir(self):
 			self.setSubscripts()
 
-		data = self.getArr('data')
+		data = self.getArray('data')
 		x, Y = self.subscripts
 
 		for i, y in enumerate(Y):
@@ -154,9 +264,9 @@ class Score:
 
 	def show(self):
 		if 'self' not in self.img:
-			bg   = self.getArr('bg').astype('float')
-			data = self.getArr('data').astype('float')
-			bar  = self.getArr('bar')
+			bg   = self.getArray('bg').astype('float')
+			data = self.getArray('data').astype('float')
+			bar  = self.getArray('bar')
 
 			tmp = (bg[:,:,:3]*bg[:,:,(3,3,3)]+data[:,:,:3]*data[:,:,(3,3,3)])/255
 			mask = tmp > 256
@@ -276,7 +386,7 @@ def parseMeasure(arr, mode):
 	v   = np.array(['|']*mode)
 	return toStr(np.c_[bt,v,fx,v,vol])
 
-def parseScore(score, mode):
+def parseScore(score):
 	h = '\r\n--\r\n'
-	score = h.join([parseMeasure(k, mode) for k in score])
+	score = h.join([parseMeasure(k, k.shape[0]/2) for k in score])
 	return h + score + h
