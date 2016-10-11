@@ -18,38 +18,45 @@ class myConsole(wx.TextCtrl):
 		self.SetFont(wx.Font(12, wx.DEFAULT, wx.NORMAL, wx.NORMAL))
 
 	def flush(self):
-			print '\033[2A',
 			wx.Yield()
 
 class myFrame(wx.Frame):
 	def __init__(self):
 		wx.Frame.__init__(self, None, -1, 'sdvx2ksh_ver0.1β')
 		self.SetSize((600,700))
-		self.panel = wx.Panel(self, size=self.GetSize())
-		self.panel.SetBackgroundColour('white')
+		self.panel_root = wx.Panel(self, size=self.GetSize())
+		#self.panel.SetBackgroundColour('white')
 		font = wx.Font(15, wx.DEFAULT, wx.NORMAL, wx.NORMAL)
 
-		self.text = wx.StaticText(self.panel, -1, 'url')
+		self.panel_url = wx.Panel(self.panel_root)
+
+		self.text = wx.StaticText(self.panel_url, -1, 'url')
 		self.text.SetFont(font)
 
-		self.urlctrl = wx.TextCtrl(self.panel, -1)
+		self.urlctrl = wx.TextCtrl(self.panel_url, -1)
 		self.urlctrl.SetFont(font)
 
-		self.button = wx.Button(self.panel, -1, 'run', size=(40,30))
+		self.button = wx.Button(self.panel_url, -1, 'run', size=(40,30))
 		self.button.SetFont(font)
 		self.button.Bind(wx.EVT_BUTTON, self.run)
 
-		self.log = myConsole(self.panel, -1, pos=(0,50))
+		self.panel_log = wx.Panel(self.panel_root)
+		self.log = myConsole(self.panel_log, -1, pos=(0,50))
 
 		layout_url = wx.BoxSizer(wx.HORIZONTAL)
 		layout_url.Add(self.text, proportion=0)
 		layout_url.Add(self.urlctrl, proportion=1)
 		layout_url.Add(self.button, proportion=0)
+                self.panel_url.SetSizer(layout_url)
 
-		layout_outer = wx.BoxSizer(wx.VERTICAL)
-		layout_outer.Add(layout_url, proportion=0)
-		layout_outer.Add(self.log, proportion=1)
-		self.panel.SetSizer(layout_outer)
+		layout_log = wx.BoxSizer(wx.VERTICAL)
+		layout_log.Add(self.log, proportion=1, flag=wx.GROW)
+		self.panel_log.SetSizer(layout_log)
+
+		layout_root = wx.BoxSizer(wx.VERTICAL)
+		layout_root.Add(self.panel_url, proportion=0, flag=wx.GROW)
+		layout_root.Add(self.panel_log, proportion=1, flag=wx.GROW)
+		self.panel_root.SetSizer(layout_root)
 
 #		self.timer = wx.Timer(self)
 #		self.Bind(wx.EVT_TIMER, self.OnTimer)
