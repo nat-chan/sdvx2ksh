@@ -2,27 +2,49 @@
 # coding:utf-8
 from __future__ import unicode_literals
 import wx
+import wx.richtext
 import sys, time
 import pafy
+from copy import copy
 
-class myConsole(wx.TextCtrl):
+class myConsole(wx.richtext.RichTextCtrl):
 	def __init__(self, *args, **kwargs):
-		wx.TextCtrl.__init__(self,style=wx.TE_MULTILINE|\
+		wx.richtext.RichTextCtrl.__init__(self,style=wx.TE_MULTILINE|\
 		                                wx.TE_READONLY|\
 		                                wx.HSCROLL|\
 		                                wx.VSCROLL, *args, **kwargs)
 		self.SetBackgroundColour('black')
-		self.SetForegroundColour('cyan')
-		sys.stdout = self
-		sys.stderr = self
 		self.SetFont(wx.Font(12, wx.DEFAULT, wx.NORMAL, wx.NORMAL))
+		self.cyan = wx.Colour(0,255,255,255)
+		self.red = wx.Colour(255,0,0,255)
+		self.BeginTextColour(self.cyan)
+		self.Bind(wx.EVT_TEXT, self.OnText)
+
+		sys.stdout = copy(self)
+		sys.stderr = copy(self)
+		sys.stdout.write = self.stdout
+		sys.stderr.write = self.stderr
+		print "console init is finished..."
+
+	def stdout(self, txt):
+		self.WriteText(txt)
+
+	def stderr(self, txt):
+		self.BeginTextColour(self.red)
+		self.WriteText(txt)
+		self.BeginTextColour(self.cyan)
+
+	def OnText(self, event):
+		wx.Yield()
+		self.ScrollPages(1)
 
 	def flush(self):
-			wx.Yield()
+		pass
+#		wx.Yield()
 
 class myFrame(wx.Frame):
 	def __init__(self):
-		wx.Frame.__init__(self, None, -1, 'sdvx2ksh_ver0.1β')
+		wx.Frame.__init__(self, None, -1, 'sdvx2ksh_ver1.1β')
 		self.SetSize((600,700))
 		self.panel_root = wx.Panel(self, size=self.GetSize())
 		#self.panel.SetBackgroundColour('white')
@@ -58,6 +80,8 @@ class myFrame(wx.Frame):
 		layout_root.Add(self.panel_log, proportion=1, flag=wx.GROW)
 		self.panel_root.SetSizer(layout_root)
 
+		print "frame init is finished..."
+
 #		self.timer = wx.Timer(self)
 #		self.Bind(wx.EVT_TIMER, self.OnTimer)
 #		self.timer.Start(500)
@@ -65,12 +89,12 @@ class myFrame(wx.Frame):
 #	def OnTimer(self, event):
 #		wx.Yield()
 
-
 	def run(self, event):
 		url = self.urlctrl.GetValue()
 		self.button.Disable()
 		try:
 #			video = pafy.new('https://www.youtube.com/watch?v=TYUnccLCQnw')
+			print 'now getting video information...'
 			video = pafy.new(url)
 			best = video.getbestaudio()
 			best.download('test.m4a')
@@ -82,5 +106,6 @@ if __name__ == '__main__':
 	app = wx.App()
 	frame = myFrame()
 	frame.Show()
+	print 'now app is in mainloop...'
 	app.MainLoop()
 	sys.stdout = sys.__stdout__
