@@ -10,6 +10,7 @@ import lxml.html
 from cStringIO import StringIO
 import pafy
 from PIL import Image
+import os
 
 ###デバッグ用関数
 show = lambda a: Image.fromarray(np.uint8(a)).show()
@@ -390,3 +391,19 @@ def parseScore(score):
 	h = '\r\n--\r\n'
 	score = h.join([parseMeasure(k, k.shape[0]/2) for k in score])
 	return h + score + h
+
+def toKsh(score):
+	score.setCorrectUrl()
+	home = os.getcwd()
+	path = 'kshootmania/songs/sdvx2ksh/' + score.id
+	os.makedirs(path)
+	try:
+		os.chdir(path)
+		score.getImage('jacket').save('jacket_' + score._d + '.jpg')
+		score.dl_music()
+		with open(score._d + '.ksh', 'w') as f:
+			f.write(score.getHeader().encode('utf-8')+parseScore(score).encode('utf-8'))
+
+	finally:
+		os.chdir(home)
+

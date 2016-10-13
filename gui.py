@@ -6,6 +6,7 @@ import wx.richtext
 import sys, time
 import pafy
 from copy import copy
+from sdvx2ksh import *
 
 class myConsole(wx.richtext.RichTextCtrl):
 	def __init__(self, *args, **kwargs):
@@ -39,11 +40,15 @@ class myConsole(wx.richtext.RichTextCtrl):
 		self.ScrollPages(1)
 
 	def flush(self):
-		pass
-#		wx.Yield()
+		value = self.Value
+#		if 'Rate' in v.split('\n')[-4]:
+		indexs = [i for i,v in enumerate(value) if v == '\n']
+		self.Remove(indexs[-2], indexs[-1])
+		self.SetInsertionPoint(len(value))
 
 class myFrame(wx.Frame):
 	def __init__(self):
+		self.scores = dict()
 		wx.Frame.__init__(self, None, -1, 'sdvx2ksh_ver1.1β')
 		self.SetSize((600,700))
 		self.panel_root = wx.Panel(self, size=self.GetSize())
@@ -92,15 +97,16 @@ class myFrame(wx.Frame):
 	def run(self, event):
 		url = self.urlctrl.GetValue()
 		self.button.Disable()
+		if url not in self.scores:
+			self.scores[url] = Score(url)
+		score = self.scores[url]
 		try:
-#			video = pafy.new('https://www.youtube.com/watch?v=TYUnccLCQnw')
-			print 'now getting video information...'
-			video = pafy.new(url)
-			best = video.getbestaudio()
-			best.download('test.m4a')
+			print 'now exec sdvx2ksh...'
+			toKsh(score)
 		finally:
-			self.urlctrl.SetValue('')
+#			self.urlctrl.SetValue('')
 			self.button.Enable()
+		print 'go to ' + score.id + ' and check score'
 
 if __name__ == '__main__':
 	app = wx.App()

@@ -1,0 +1,16 @@
+Traceback (most recent call last):
+  File "gui.py", line 9, in <module>
+  File "sdvx2ksh.pyo", line 9, in <module>
+  File "lxml\html\__init__.pyo", line 54, in <module>
+  File "lxml\etree.pyo", line 12, in <module>
+  File "lxml\etree.pyo", line 10, in __load
+  File "lxml.etree.pyx", line 92, in init lxml.etree (src\lxml\lxml.etree.c:216188)
+ImportError: cannot import name _elementpath
+Traceback (most recent call last):
+  File "gui.py", line 9, in <module>
+  File "sdvx2ksh.pyo", line 9, in <module>
+  File "lxml\html\__init__.pyo", line 54, in <module>
+  File "lxml\etree.pyo", line 12, in <module>
+  File "lxml\etree.pyo", line 10, in __load
+  File "lxml.etree.pyx", line 92, in init lxml.etree (src\lxml\lxml.etree.c:216188)
+ImportError: cannot import name _elementpath
