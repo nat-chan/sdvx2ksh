@@ -1,4 +1,4 @@
-#*sdvx2ksh*
+#sdvx2ksh
 ![splash](https://github.com/nat-chan/sdvx2ksh/wiki/splash.png)
 
 サイトsdvx.inからのkshootmaniaの譜面を作成を支援するツールです.

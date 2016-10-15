@@ -11,6 +11,11 @@ from cStringIO import StringIO
 import pafy
 from PIL import Image
 import os
+import codecs
+from pydub import AudioSegment
+import re
+import scipy.io.wavfile as wf
+import cv2
 
 ###デバッグ用関数
 show = lambda a: Image.fromarray(np.uint8(a)).show()
@@ -106,7 +111,7 @@ class Score:
 		self.header['difficulty'] = {'n':'light', 'a':'challenge', 'e':'extended',
 		                             'i':'infinite', 'g':'infinite'}[self._d]
 		self.header['jacket'] = 'jacket_%s.jpg' % self._d
-		self.header['m'] = 'no'+((';fx_%s.m4a'%self._d)*4)[1:]
+		self.header['m'] = 'no' + ((';fx_%s.wav' % self._d)*4)[1:]
 
 	def getHeader(self):
 		if self.header == {}:
@@ -124,39 +129,12 @@ class Score:
 		self.url['bata'] = data
 		self.url['bar'] = bar
 
-
-	def setDetail(self):
-		'''
-		廃止された
-		譜面サイトをjavascriptレンダリングして詳しい譜面情報を入手
-		'''
-		try:
-			driver = webdriver.PhantomJS()
-			driver.get(self.url['url'])
-
-			self.title  = driver.find_elements_by_class_name('f1')[2].text
-			self.artist = driver.find_elements_by_class_name('b2')[0].text[2:]
-			self.level  = driver.find_elements_by_tag_name('a')
-#TODO DIABLOSIS::Negaにてclass_nameがb2になっている
-#			self.bpm    = driver.find_elements_by_class_name('f1')[3].text
-#			self.chain  = driver.find_element_by_class_name('e1').text
-
-			elements = driver.find_elements_by_tag_name('a')
-			self.url['fx']   = elements[2].get_attribute('href')
-			self.url['nofx'] = elements[3].get_attribute('href')
-
-			texts = driver.find_elements_by_class_name('ef')[2].text.split('\n')
-			self.effect      = texts[0]
-			self.illustrator = texts[1]
-
-#			self.screenshot = Image.open(StringIO(driver.get_screenshot_as_png()))
-
-		finally:
-			driver.close()
-
 	def setSource(self):
 		try:
-			driver = webdriver.PhantomJS()
+			print "webdriverを起動中"
+			print "重たい処理なので応答なしになる場合があります"
+			driver = webdriver.PhantomJS(service_log_path=os.path.devnull)
+			print "webページを取得中"
 			driver.get(self.url['url'])
 			self.source = driver.page_source
 		finally:
@@ -211,14 +189,22 @@ class Score:
 		self.url['nofx'] = nofx.xpath(".//a")[0].attrib['href']
 
 	def dl_music(self):
-		def dl(url, path):
+		def dl(url, filename):
 			video = pafy.new(url)
 			best = video.getbestaudio()
-			best.download(path)
+			nonwave_filename = filename + '.' + best.extension
+			wave_filename = filename + '.wav'
+			print 'youtubeから' + best.title + 'をダウンロードしています'
+			best.download(nonwave_filename)
+			print nonwave_filename + "の保存に成功しました"
+			sound = AudioSegment.from_file(nonwave_filename)
+			print best.title + 'のwavファイルを生成しています'
+			sound.export(wave_filename, format='wav')
+
 		if 'fx' not in self.url or 'nofx' not in self.url:
 			self.setYoutubeUrl()
-		dl(self.url['fx'], 'fx_'+self._d+'.m4a')
-		dl(self.url['nofx'], 'nofx_'+self._d+'.m4a')
+		dl(self.url['fx'], 'fx_' + self._d)
+		dl(self.url['nofx'], 'nofx_' + self._d)
 
 	def getArray(self, key):
 		if key not in self.arr:
@@ -392,18 +378,31 @@ def parseScore(score):
 	score = h.join([parseMeasure(k, k.shape[0]/2) for k in score])
 	return h + score + h
 
-def toKsh(score):
-	score.setCorrectUrl()
-	home = os.getcwd()
-	path = 'kshootmania/songs/sdvx2ksh/' + score.id
-	os.makedirs(path)
-	try:
-		os.chdir(path)
-		score.getImage('jacket').save('jacket_' + score._d + '.jpg')
-		score.dl_music()
-		with open(score._d + '.ksh', 'w') as f:
-			f.write(score.getHeader().encode('utf-8')+parseScore(score).encode('utf-8'))
+def adjustWave(fx_filename, nofx_filename):
+	print "fx,nofx音源の位置合わせをしています"
+	fps, fx = wf.read(fx_filename)
+	fps2, nofx = wf.read(nofx_filename)
 
-	finally:
-		os.chdir(home)
+	d = 1
+	fx_t = 20, 100
+	nofx_t = fx_t[0] + d,  fx_t[1] - d
+	if fps != fps2:
+		print 'fx音源とnofx音源のサンプリングレートが異なります'
+		print 'Audacityなどで音ズレを直して下さい'
+
+	else:
+		fxf = fx.astype('float32')
+		nofxf = nofx.astype('float32')
+
+		imag = fxf[ fps*fx_t[0] : fps*fx_t[1] ]
+		templ = nofxf[ fps*nofx_t[0] : fps*nofx_t[1] ]
+		res = cv2.matchTemplate(imag, templ, cv2.TM_SQDIFF)
+		error = np.argmin(res) - d*fps
+		print str(error) + "フレームの音ズレを検出しました"
+		if error == 0:
+			pass
+		elif error > 0:
+			wf.write(fx_filename, fps, fx[error:])
+		else:
+			wf.write(nofx_filename, fps, nofx[-error:])
 

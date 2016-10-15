@@ -7,6 +7,8 @@ import sys, time
 import pafy
 from copy import copy
 from sdvx2ksh import *
+import time
+import subprocess
 
 class myConsole(wx.richtext.RichTextCtrl):
 	def __init__(self, *args, **kwargs):
@@ -102,11 +104,42 @@ class myFrame(wx.Frame):
 		score = self.scores[url]
 		try:
 			print 'now exec sdvx2ksh...'
-			toKsh(score)
+
+			score.setCorrectUrl()
+			score.setHeader()
+			safefilename = score.header['title']
+			safefilename = safefilename.encode('sjis','replace').decode('sjis')
+			safefilename = re.sub(r'[\\|/|:|?|.|"|<|>|\|]', '', safefilename)
+			home = os.getcwd()
+			path = 'kshootmania/songs/sdvx2ksh/' + safefilename
+			try:
+				os.makedirs(path)
+			except WindowsError:
+				print "既にフォルダが作られています"
+			try:
+				os.chdir(path)
+				if os.path.exists('jacket_' + score._d + '.jpg'):
+					print "一度譜面を作っているようです、もう一度実行したいときは  "\
+					+ path + "  以下のファイルを削除してください。"
+					raise Exception
+				score.getImage('jacket').save('jacket_' + score._d + '.jpg')
+				score.dl_music()
+				adjustWave('fx_' + score._d + '.wav','nofx_' + score._d + '.wav')
+				with open(score._d + '.ksh', 'w') as f:
+					f.write((score.getHeader() + parseScore(score)).encode('sjis','replace'))
+
+				print "全てのプロセスが正常終了しました。エディターを起動します。"
+				subprocess.Popen(
+					(os.path.abspath('../../../editor.exe') + ' ' +
+					 os.path.abspath(score._d+'.ksh')).encode('sjis'))
+
+			finally:
+				os.chdir(home)
+
 		finally:
 #			self.urlctrl.SetValue('')
 			self.button.Enable()
-		print 'go to ' + score.id + ' and check score'
+
 
 if __name__ == '__main__':
 	app = wx.App()
